@@ -8,7 +8,7 @@ var mongoose = require("mongoose");
 require("dotenv").config();
 
 const app = express();
-const port = 3452;
+const port = process.env.PORT || 8000;
 
 app.use(bodyParser.json());
 app.use(cors());
@@ -55,8 +55,6 @@ app.post("/readbins/", (req, res) => {
       if (err) {
         res.json({ error: "Error" });
       } else if (binData) {
-        console.log({ binData });
-
         if (binData.pwHash) {
           if (!password) {
             res.json({ error: "Password is required" });
