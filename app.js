@@ -1,6 +1,6 @@
-// TODO: get ready for deploy (also for web)
 const express = require("express");
 const bcrypt = require("bcrypt");
+var crypto = require("crypto");
 var cors = require("cors");
 const bodyParser = require("body-parser");
 var mongoose = require("mongoose");
@@ -42,6 +42,21 @@ const generateHashSync = (text) => {
   return hash;
 };
 
+// TODO: Move helper functions to another module
+function dataEncrypt(password, text) {
+  var cipher = crypto.createCipher("aes192", password);
+  var encrypted = cipher.update(text, "utf8", "hex");
+  encrypted += cipher.final("hex");
+  return encrypted;
+}
+
+function dataDecrypt(password, encrypted) {
+  var decipher = crypto.createDecipher("aes192", password);
+  var decrypted = decipher.update(encrypted, "hex", "utf8");
+  decrypted += decipher.final("utf8");
+  return decrypted;
+}
+
 // READ BIN
 // (this is POST because GET won't accept req body)
 app.post("/readbins/", (req, res) => {
@@ -59,17 +74,27 @@ app.post("/readbins/", (req, res) => {
           if (!password) {
             res.json({ error: "Password is required" });
           } else if (bcrypt.compareSync(password, binData.pwHash)) {
-            /* TODO: For content encryption:
-            /* IF password is correct:
-            /*    res.json(DECRYPT(contentHast, password))
-            /* this way, content won't be readable without correct password.
-            */
-            res.json(binData);
+            // TODO: A note about encryption: here, password and password hash are only used
+            // for authorization to the bin content, so bcrypt probably adds a redundant layer:
+            // keeping {is_password_protected: Boolean, bodyHash: string} should be sufficient
+            const { body: encryptedBody } = binData;
+            const decryptedBody = dataDecrypt(password, encryptedBody);
+
+            res.json({
+              ...binData,
+              body: decryptedBody,
+            });
           } else {
             res.json({ error: "Wrong password" });
           }
         } else {
-          res.json(binData);
+          res.json({
+            ...binData,
+            body: dataDecrypt(
+              process.env.DEFAULT_ENCRYPTION_PASSWORD,
+              binData.body
+            ),
+          });
         }
       } else {
         res.json({ error: "Bin not found" });
@@ -91,7 +116,11 @@ app.post("/bins/", async (req, res) => {
     res.json({ error: "Body is required" });
   } else {
     const newBin = new Bin({
-      body: body,
+      // IF password was not given by user, use default password to encrpyt
+      body: dataEncrypt(
+        password || process.env.DEFAULT_ENCRYPTION_PASSWORD,
+        body
+      ),
       pwHash: password ? generateHashSync(password) : null,
     });
 
