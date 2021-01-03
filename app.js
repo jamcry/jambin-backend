@@ -138,6 +138,11 @@ app.post("/bins/", async (req, res) => {
   }
 });
 
+// This endpoint is used for pinging backend from frontend to wake up Heroku app
+app.post("/ping", (req, res) => {
+  res.json({ success: "Server is live" });
+});
+
 app.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`);
 });
