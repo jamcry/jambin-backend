@@ -11,7 +11,26 @@ const app = express();
 const port = process.env.PORT || 8000;
 
 app.use(bodyParser.json());
-app.use(cors());
+
+const CORS_ALLOWED_ORIGINS = [
+  "https://ecstatic-archimedes-a0155f.netlify.app",
+  "http://localhost:3000",
+];
+
+app.use(
+  // Allow CORS for only known origins
+  // source: https://www.cluemediator.com/how-to-enable-cors-for-multiple-domains-in-node-js
+  cors({
+    origin: (origin, cb) => {
+      if (CORS_ALLOWED_ORIGINS.indexOf(origin) === -1) {
+        var msg = `This site ${origin} does not have an access. Only specific domains are allowed to access it.`;
+        return cb(new Error(msg), false);
+      } else {
+        return cb(null, true);
+      }
+    },
+  })
+);
 
 const mongoURI = process.env.MONGO_DB_URL;
 
